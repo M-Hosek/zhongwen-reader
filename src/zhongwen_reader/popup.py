@@ -1,12 +1,9 @@
-"""Frameless always-on-top popup showing dictionary matches near the cursor."""
+"""Frameless always-on-top popup rendering provider segments near the cursor."""
 
 from __future__ import annotations
 
 import tkinter as tk
 import tkinter.font as tkfont
-
-from .dictionary import Match
-from .pinyin import format_pinyin
 
 # Zhongwen-style tone colors: 1=red 2=orange 3=green 4=blue 5=neutral gray
 TONE_COLORS = {
@@ -22,29 +19,11 @@ FG_HANZI = "#ffffff"
 FG_ALT = "#9aa0ab"
 FG_DEF = "#d8dbe0"
 
-MAX_MATCHES = 4
 CURSOR_OFFSET = (16, 22)
 
-# Segment kinds: hanzi, hanzi_alt, pinyin, definition, separator
+# (kind, text, tone) — kinds: hanzi, hanzi_alt, pinyin, reading, inflection,
+# definition, separator. Providers produce these; the popup only renders.
 Segment = tuple[str, str, int | None]
-
-
-def build_segments(matches: list[Match]) -> list[Segment]:
-    """Flatten dictionary matches into (kind, text, tone) render segments."""
-    segments: list[Segment] = []
-    for i, match in enumerate(matches[:MAX_MATCHES]):
-        if i:
-            segments.append(("separator", "", None))
-        for entry in match.entries:
-            shown = match.word
-            alt = entry.traditional if shown == entry.simplified else entry.simplified
-            segments.append(("hanzi", shown, None))
-            if alt != shown:
-                segments.append(("hanzi_alt", f"（{alt}）", None))
-            for syllable, tone in format_pinyin(entry.pinyin):
-                segments.append(("pinyin", syllable, tone))
-            segments.append(("definition", "; ".join(entry.definitions), None))
-    return segments
 
 
 class Popup:
@@ -86,12 +65,22 @@ class Popup:
             )
         self._text.tag_configure("definition", foreground=FG_DEF)
         self._text.tag_configure("separator", foreground="#3a3d46")
+        self._text.tag_configure(
+            "reading",
+            font=tkfont.Font(family="Segoe UI", size=font_size, weight="bold"),
+            foreground="#7fd4c3",
+        )
+        self._text.tag_configure(
+            "inflection",
+            font=tkfont.Font(family="Segoe UI", size=font_size - 1, slant="italic"),
+            foreground=FG_ALT,
+        )
 
-    def show(self, matches: list[Match], screen_x: int, screen_y: int) -> None:
-        if not matches:
+    def show(self, segments: list[Segment], screen_x: int, screen_y: int) -> None:
+        if not segments:
             self.hide()
             return
-        self._render(build_segments(matches))
+        self._render(segments)
         self._place(screen_x, screen_y)
         self._win.deiconify()
 
@@ -114,6 +103,12 @@ class Popup:
             elif kind == "pinyin":
                 text.insert("end", "  " if tone is None else " ")
                 text.insert("end", content, f"tone{tone}")
+            elif kind == "reading":
+                text.insert("end", "  ")
+                text.insert("end", content, "reading")
+            elif kind == "inflection":
+                text.insert("end", "  ")
+                text.insert("end", content, "inflection")
             elif kind == "definition":
                 text.insert("end", "\n" + content, "definition")
         # Shrink the widget to its actual rendered line count.

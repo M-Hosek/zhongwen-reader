@@ -1,7 +1,7 @@
 [project]
 name = "zhongwen-reader"
 version = "0.1.0"
-description = "System-wide Chinese popup dictionary for Windows: hold a key, hover over Chinese text anywhere on screen, see pinyin and definitions."
+description = "System-wide Chinese/Japanese popup dictionary for Windows: hold a key, hover over text anywhere on screen, see readings and definitions."
 requires-python = ">=3.13"
 dependencies = [
     "mss",

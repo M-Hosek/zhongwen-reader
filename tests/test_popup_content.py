@@ -1,5 +1,6 @@
 from zhongwen_reader.dictionary import Entry, Match
-from zhongwen_reader.popup import TONE_COLORS, build_segments
+from zhongwen_reader.popup import TONE_COLORS
+from zhongwen_reader.providers.chinese import build_segments
 
 
 def test_tone_colors_defined_for_all_tones():

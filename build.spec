@@ -4,7 +4,10 @@
 a = Analysis(
     ["run_app.py"],
     pathex=["src"],
-    datas=[("data/cedict_ts.u8", "data")],
+    datas=[
+        ("data/cedict_ts.u8", "data"),
+        ("data/jmdict_e.tsv.gz", "data"),
+    ],
     hiddenimports=[],
     noarchive=False,
 )

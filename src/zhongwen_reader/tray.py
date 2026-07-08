@@ -20,7 +20,12 @@ def _make_icon_image() -> Image.Image:
     return img
 
 
-def start_tray(paused: threading.Event, on_quit) -> pystray.Icon:
+def start_tray(
+    paused: threading.Event,
+    on_quit,
+    on_language=None,
+    current_language=None,
+) -> pystray.Icon:
     """Run the tray icon on a background thread; returns the icon."""
 
     def toggle_pause(icon, item):
@@ -33,17 +38,41 @@ def start_tray(paused: threading.Event, on_quit) -> pystray.Icon:
         icon.stop()
         on_quit()
 
+    def pick_language(language):
+        def handler(icon, item):
+            on_language(language)
+            icon.update_menu()
+
+        return handler
+
+    items = [
+        pystray.MenuItem(
+            lambda item: "Resume" if paused.is_set() else "Pause",
+            toggle_pause,
+        ),
+    ]
+    if on_language is not None:
+        items += [
+            pystray.MenuItem(
+                "中文 (Chinese)",
+                pick_language("chinese"),
+                checked=lambda item: current_language() == "chinese",
+                radio=True,
+            ),
+            pystray.MenuItem(
+                "日本語 (Japanese)",
+                pick_language("japanese"),
+                checked=lambda item: current_language() == "japanese",
+                radio=True,
+            ),
+        ]
+    items.append(pystray.MenuItem("Quit", quit_app))
+
     icon = pystray.Icon(
         "zhongwen_reader",
         _make_icon_image(),
-        "Zhongwen Reader — hold Ctrl and hover over Chinese text",
-        menu=pystray.Menu(
-            pystray.MenuItem(
-                lambda item: "Resume" if paused.is_set() else "Pause",
-                toggle_pause,
-            ),
-            pystray.MenuItem("Quit", quit_app),
-        ),
+        "Zhongwen Reader — hold Ctrl and hover over Chinese/Japanese text",
+        menu=pystray.Menu(*items),
     )
     threading.Thread(target=icon.run, daemon=True).start()
     return icon

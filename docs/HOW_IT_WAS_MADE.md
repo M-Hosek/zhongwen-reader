@@ -1,5 +1,17 @@
 # How Zhongwen Reader Was Made
 
+> **Update (July 2026):** the app now also supports Japanese. Everything below
+> about the pixel pipeline still applies; the language-specific parts
+> (dictionary, readings, which characters count as a word) now live behind a
+> small provider interface (`providers/chinese.py`, `providers/japanese.py`),
+> switched from the tray menu. Japanese adds two pieces Chinese doesn't need:
+> a JMdict build-time converter (XML → compact TSV, since parsing 100 MB of
+> XML at startup is too slow) and a rule-based deinflection engine
+> (`deinflect.py`) that undoes verb/adjective conjugations breadth-first
+> (食べました → 食べる) and validates every candidate against JMdict
+> part-of-speech tags to suppress false positives — the same approach
+> Rikaichan and Yomitan use.
+
 This document explains the design decisions and architecture behind the app,
 for anyone curious how it works or wanting to modify it.
 

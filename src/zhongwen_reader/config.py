@@ -16,6 +16,7 @@ class Config:
     trigger_key: str = "ctrl"  # ctrl | alt | shift
     font_size: int = 12
     max_word_length: int = 8
+    language: str = "chinese"  # chinese | japanese
 
     @property
     def trigger_vk(self) -> int:
@@ -36,6 +37,15 @@ def load_config(path: str | Path | None = None) -> Config:
         return Config()
     fields = {f.name for f in dataclasses.fields(Config)}
     return Config(**{k: v for k, v in data.items() if k in fields})
+
+
+def save_language(language: str, path: str | Path | None = None) -> None:
+    """Persist the selected language, preserving other settings in the file."""
+    path = Path(path) if path else default_config_path()
+    current = load_config(path)
+    merged = dataclasses.asdict(dataclasses.replace(current, language=language))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(merged, indent=2), encoding="utf-8")
 
 
 def write_default_config(path: str | Path | None = None) -> Path:

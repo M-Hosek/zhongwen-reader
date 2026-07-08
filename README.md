@@ -1,19 +1,28 @@
 # Zhongwen Reader
 
-A system-wide Chinese popup dictionary for Windows, inspired by the
-[Zhongwen](https://github.com/cschiller/zhongwen) browser extension — but for
-anything on your screen: Word documents, PDFs in Acrobat (including scanned
-pages), or any other window.
+A system-wide Chinese **and Japanese** popup dictionary for Windows, inspired
+by the [Zhongwen](https://github.com/cschiller/zhongwen) browser extension —
+but for anything on your screen: Word documents, PDFs in Acrobat (including
+scanned pages), or any other window.
 
-**Hold `Ctrl` and hover the mouse over Chinese text.** A popup appears next to
-the cursor showing the word, tone-colored pinyin, and English definitions.
+**Hold `Ctrl` and hover the mouse over the text.** A popup appears next to
+the cursor showing the word, its reading, and English definitions.
 Release `Ctrl` and it disappears. Everything runs offline on your computer —
 no cloud services, no tracking, no internet needed.
+
+Chinese mode:
 
 - Longest word first: hovering the 图 in 图书馆 shows 图书馆 (library), then
   图书, then 图 — just like Zhongwen.
 - Both simplified and traditional characters are recognized and displayed.
 - Pinyin tone colors: 1 = red, 2 = orange, 3 = green, 4 = blue, neutral = gray.
+
+Japanese mode (switch via the tray menu):
+
+- Kana readings for every entry (食べる → たべる).
+- Conjugated words are recognized: hovering 食べました finds 食べる and shows
+  "← polite past"; 勉強しています finds 勉強. Rule-based deinflection in the
+  style of Rikaichan/Yomitan, validated against JMdict part-of-speech tags.
 
 ## Using the app
 
@@ -22,7 +31,9 @@ no cloud services, no tracking, no internet needed.
 2. Open any document with Chinese text.
 3. Hold `Ctrl` and hover over a character. Move the mouse along the text and
    the popup follows.
-4. Right-click the tray icon to **Pause** (temporarily disable) or **Quit**.
+4. Right-click the tray icon to **Pause** (temporarily disable), switch
+   between **中文 (Chinese)** and **日本語 (Japanese)**, or **Quit**. The
+   language choice is remembered between sessions.
 
 Tips:
 
@@ -41,18 +52,21 @@ restart the app:
 | `trigger_key` | `"ctrl"` | Key to hold: `"ctrl"`, `"alt"`, or `"shift"` |
 | `font_size` | `12` | Popup text size |
 | `max_word_length` | `8` | Longest dictionary word to match |
+| `language` | `"chinese"` | Startup language: `"chinese"` or `"japanese"` |
 
 ## Requirements
 
-Windows 10/11 with a Chinese OCR language pack (a free Windows component; the
-app tells you if it's missing). To add one: **Settings → Time & Language →
-Language & region → Add a language** → 中文(中华人民共和国) for simplified or
-中文(台湾) for traditional. This does not change your display language.
+Windows 10/11 with the OCR language pack for your language (a free Windows
+component; the app tells you if it's missing). To add one: **Settings → Time &
+Language → Language & region → Add a language** → 中文(中华人民共和国) for
+simplified Chinese, 中文(台湾) for traditional, or 日本語 for Japanese. This
+does not change your display language.
 
 Or from an administrator terminal:
 
     dism /online /add-capability /capabilityname:Language.OCR~~~zh-CN~0.0.1.0
     dism /online /add-capability /capabilityname:Language.OCR~~~zh-TW~0.0.1.0
+    dism /online /add-capability /capabilityname:Language.OCR~~~ja-JP~0.0.1.0
 
 ## Building from source
 
@@ -80,10 +94,15 @@ architecture, design decisions, and testing approach.
 
 ## Credits and licenses
 
-- Dictionary data: [CC-CEDICT](https://www.mdbg.net/chinese/dictionary?page=cedict),
+- Chinese dictionary data: [CC-CEDICT](https://www.mdbg.net/chinese/dictionary?page=cedict),
   © CC-CEDICT contributors, licensed
   [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
   (`data/cedict_ts.u8`, unmodified).
+- Japanese dictionary data: [JMdict](https://www.edrdg.org/jmdict/j_jmdict.html),
+  © the Electronic Dictionary Research and Development Group, licensed
+  [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
+  (`data/jmdict_e.tsv.gz`, converted to a compact format by `build_jmdict.py`).
 - Inspired by the [Zhongwen](https://github.com/cschiller/zhongwen) Chrome
-  extension by Christian Schiller.
+  extension by Christian Schiller; the Japanese deinflection approach follows
+  Rikaichan/[Yomitan](https://github.com/yomidevs/yomitan).
 - Application code: MIT License (see `LICENSE`).

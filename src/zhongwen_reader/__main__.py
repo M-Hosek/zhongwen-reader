@@ -1,4 +1,4 @@
-"""Zhongwen Reader: hold the trigger key and hover over Chinese text anywhere."""
+"""Zhongwen Reader: hold the trigger key and hover over Chinese or Japanese text."""
 
 from __future__ import annotations
 
@@ -11,11 +11,11 @@ from pathlib import Path
 from tkinter import messagebox
 
 from .capture import capture_around, enable_dpi_awareness, get_cursor_pos
-from .config import load_config, write_default_config
-from .dictionary import Dictionary
+from .config import load_config, save_language, write_default_config
 from .hotkey import is_key_held
 from .ocr import ChineseOcr, text_at_point
 from .popup import Popup
+from .providers import get_provider
 from .tray import start_tray
 
 POLL_HELD_S = 0.03
@@ -23,36 +23,39 @@ POLL_IDLE_S = 0.05
 MOVE_THRESHOLD_PX = 4
 
 LANGUAGE_PACK_HELP = """\
-No Chinese OCR language pack is installed, so on-screen Chinese cannot be read.
+No {lang} OCR language pack is installed, so on-screen text cannot be read.
 
 To install (one time only):
 
 1. Open Settings > Time & Language > Language & region
-2. Add a language: "中文(中华人民共和国)" for simplified,
-   "中文(台湾)" for traditional
+2. Add a language: {packs}
 3. You can untick everything except the basic pack. Windows adds
    the OCR component automatically.
 4. Restart Zhongwen Reader.
 
 (You do not need to change your display or keyboard language.)"""
 
+PACK_NAMES = {
+    "chinese": '"中文(中华人民共和国)" for simplified, "中文(台湾)" for traditional',
+    "japanese": '"日本語"',
+}
 
-def data_file(name: str) -> Path:
+
+def data_dir() -> Path:
     if getattr(sys, "frozen", False):
-        return Path(sys._MEIPASS) / "data" / name
-    return Path(__file__).resolve().parents[2] / "data" / name
+        return Path(sys._MEIPASS) / "data"
+    return Path(__file__).resolve().parents[2] / "data"
 
 
 def worker(
     stop: threading.Event,
     paused: threading.Event,
     results: queue.Queue,
-    dictionary: Dictionary,
+    state: dict,
     ocr: ChineseOcr,
     trigger_vk: int,
     max_word_length: int,
 ) -> None:
-    scripts = sorted(ocr.available_scripts)  # Hans before Hant
     last_pos: tuple[int, int] | None = None
     showing = False
     while not stop.is_set():
@@ -73,20 +76,27 @@ def worker(
             continue
         last_pos = (x, y)
 
+        provider = state["provider"]
         cap = capture_around(x, y)
         ix, iy = cap.to_image_coords(x, y)
-        matches = []
-        for script in scripts:
+        segments = []
+        for script in provider.ocr_scripts:
+            if script not in ocr.available_scripts:
+                continue
             text = text_at_point(
-                ocr.recognize(cap.image, script), ix, iy, max_word_length
+                ocr.recognize(cap.image, script),
+                ix,
+                iy,
+                max_word_length,
+                is_word_char=provider.is_word_char,
             )
             if text:
-                matches = dictionary.match_prefixes(text)
-                if matches:
+                segments = provider.lookup(text)
+                if segments:
                     break
 
-        if matches:
-            results.put(("show", matches, x, y))
+        if segments:
+            results.put(("show", segments, x, y))
             showing = True
         elif showing:
             results.put(("hide",))
@@ -102,11 +112,26 @@ def main() -> None:
     root.withdraw()
 
     ocr = ChineseOcr()
-    if not ocr.available_scripts:
-        messagebox.showerror("Zhongwen Reader — setup needed", LANGUAGE_PACK_HELP)
+    state = {"provider": get_provider(config.language, data_dir())}
+
+    def check_ocr_pack(language: str) -> bool:
+        provider_scripts = {
+            "chinese": ["Hans", "Hant"],
+            "japanese": ["Ja"],
+        }[language]
+        if any(s in ocr.available_scripts for s in provider_scripts):
+            return True
+        messagebox.showwarning(
+            "Zhongwen Reader — OCR pack needed",
+            LANGUAGE_PACK_HELP.format(
+                lang=language.capitalize(), packs=PACK_NAMES[language]
+            ),
+        )
+        return False
+
+    if not check_ocr_pack(config.language) and not ocr.available_scripts:
         sys.exit(1)
 
-    dictionary = Dictionary.load(data_file("cedict_ts.u8"))
     popup = Popup(root, font_size=config.font_size)
 
     stop = threading.Event()
@@ -115,7 +140,7 @@ def main() -> None:
 
     threading.Thread(
         target=worker,
-        args=(stop, paused, results, dictionary, ocr,
+        args=(stop, paused, results, state, ocr,
               config.trigger_vk, config.max_word_length),
         daemon=True,
     ).start()
@@ -124,7 +149,17 @@ def main() -> None:
         stop.set()
         root.after(0, root.destroy)
 
-    start_tray(paused, on_quit)
+    def on_language(language: str):
+        state["provider"] = get_provider(language, data_dir())
+        save_language(language)
+        check_ocr_pack(language)
+
+    start_tray(
+        paused,
+        on_quit,
+        on_language=on_language,
+        current_language=lambda: state["provider"].name,
+    )
 
     def poll_results():
         try:
@@ -135,8 +170,8 @@ def main() -> None:
             pass
         if msg:
             if msg[0] == "show":
-                _, matches, x, y = msg
-                popup.show(matches, x, y)
+                _, segments, x, y = msg
+                popup.show(segments, x, y)
             else:
                 popup.hide()
         root.after(30, poll_results)

@@ -12,7 +12,8 @@ from winrt.windows.graphics.imaging import BitmapDecoder
 from winrt.windows.media.ocr import OcrEngine
 from winrt.windows.storage.streams import DataWriter, InMemoryRandomAccessStream
 
-SCRIPT_TAGS = {"Hans": "zh-Hans-CN", "Hant": "zh-Hant-TW"}
+SCRIPT_TAGS = {"Hans": "zh-Hans-CN", "Hant": "zh-Hant-TW", "Ja": "ja-JP"}
+FALLBACK_TAGS = {"Hans": "zh-Hans", "Hant": "zh-Hant", "Ja": "ja"}
 
 
 @dataclass(frozen=True)
@@ -43,7 +44,7 @@ class ChineseOcr:
             if engine is None:
                 # Fall back to the generic tag (pack region may differ)
                 engine = OcrEngine.try_create_from_language(
-                    Language(f"zh-{script}")
+                    Language(FALLBACK_TAGS[script])
                 )
             if engine is not None:
                 self._engines[script] = engine
@@ -96,11 +97,17 @@ def _char_boxes(line: list[WordBox]) -> list[tuple[str, float, float]]:
 
 
 def text_at_point(
-    lines: list[list[WordBox]], px: float, py: float, max_chars: int = 8
+    lines: list[list[WordBox]],
+    px: float,
+    py: float,
+    max_chars: int = 8,
+    is_word_char=is_cjk,
 ) -> str:
-    """The run of CJK characters starting under (px, py), reading rightward.
+    """The run of word characters starting under (px, py), reading rightward.
 
-    Returns "" if the point is not over a CJK character.
+    `is_word_char` decides which characters belong to a word (language-
+    specific; defaults to Chinese Han ranges). Returns "" if the point is
+    not over a word character.
     """
     line = None
     for candidate in lines:
@@ -118,12 +125,12 @@ def text_at_point(
         if x0 <= px < x1:
             start = i
             break
-    if start is None or not is_cjk(chars[start][0]):
+    if start is None or not is_word_char(chars[start][0]):
         return ""
 
     tail = []
     for ch, _, _ in chars[start:]:
-        if not is_cjk(ch) or len(tail) >= max_chars:
+        if not is_word_char(ch) or len(tail) >= max_chars:
             break
         tail.append(ch)
     return "".join(tail)

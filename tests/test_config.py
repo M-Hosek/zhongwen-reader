@@ -1,6 +1,6 @@
 import json
 
-from zhongwen_reader.config import Config, load_config
+from zhongwen_reader.config import Config, load_config, save_language
 
 
 def test_defaults_when_no_file(tmp_path):
@@ -31,6 +31,19 @@ def test_corrupt_file_falls_back_to_defaults(tmp_path):
     path = tmp_path / "config.json"
     path.write_text("{not json")
     assert load_config(path) == Config()
+
+
+def test_language_defaults_to_chinese(tmp_path):
+    assert load_config(tmp_path / "missing.json").language == "chinese"
+
+
+def test_save_language_preserves_other_settings(tmp_path):
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps({"font_size": 16}))
+    save_language("japanese", path)
+    cfg = load_config(path)
+    assert cfg.language == "japanese"
+    assert cfg.font_size == 16
 
 
 def test_trigger_vk_codes():
