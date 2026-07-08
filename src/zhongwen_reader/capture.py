@@ -8,8 +8,8 @@ from dataclasses import dataclass
 import mss
 from PIL import Image
 
-STRIP_WIDTH = 360
-STRIP_HEIGHT = 90
+STRIP_WIDTH = 560
+STRIP_HEIGHT = 100
 SCALE = 2
 
 
@@ -56,8 +56,12 @@ def capture_around(
     height: int = STRIP_HEIGHT,
     scale: int = SCALE,
 ) -> Capture:
-    """Grab a strip centered on (x, y), upscaled for better OCR accuracy."""
-    left = x - width // 2
+    """Grab a strip around (x, y), upscaled for better OCR accuracy.
+
+    Biased rightward: lookups only read from the cursor onward, so a quarter
+    of the width goes left of the cursor and the rest right (long conjugated
+    words must not get clipped at the strip edge)."""
+    left = x - width // 4
     top = y - height // 2
     with mss.MSS() as sct:
         raw = sct.grab({"left": left, "top": top, "width": width, "height": height})

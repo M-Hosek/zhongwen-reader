@@ -50,6 +50,33 @@ def test_tail_stops_at_non_cjk():
     assert text_at_point(lines, 110, 20) == "图书馆"
 
 
+def test_cursor_in_gap_between_boxes_snaps_to_nearest():
+    # OCR often returns per-character boxes with small gaps (typical for
+    # Japanese). Cursor at x=142 falls between 図書 (100..140) and 館 (146..166).
+    lines = [
+        [
+            WordBox(text="図書", x=100, y=10, w=40, h=20),
+            WordBox(text="館", x=146, y=10, w=20, h=20),
+        ]
+    ]
+    # nearest char is 書 (2px away, vs 館 at 4px)
+    assert text_at_point(lines, 142, 20) == "書館"
+
+
+def test_cursor_far_from_any_box_still_returns_empty():
+    lines = [[WordBox(text="図", x=100, y=10, w=20, h=20)]]
+    assert text_at_point(lines, 300, 20) == ""
+
+
+def test_prefers_line_containing_cursor_horizontally():
+    # Two OCR lines overlap vertically (e.g. background window text captured
+    # in the strip). The cursor is horizontally inside the second line's span;
+    # that line must win even though the first line also matches vertically.
+    english = [WordBox(text="hello", x=400, y=8, w=100, h=24)]
+    japanese = [WordBox(text="図書館", x=100, y=10, w=60, h=20)]
+    assert text_at_point([english, japanese], 110, 20) == "図書館"
+
+
 def test_max_chars_limit():
     lines = [make_line([("一二三四五六七八九十", 100)])]
     assert text_at_point(lines, 110, 20, max_chars=4) == "一二三四"

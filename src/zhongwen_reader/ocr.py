@@ -109,13 +109,23 @@ def text_at_point(
     specific; defaults to Chinese Han ranges). Returns "" if the point is
     not over a word character.
     """
+    # Among lines whose vertical span contains the cursor, prefer one that
+    # also contains it horizontally (the strip can capture several lines of
+    # unrelated text); tiebreak on vertical-center distance.
     line = None
+    best = None
     for candidate in lines:
         top = min(w.y for w in candidate)
         bottom = max(w.y + w.h for w in candidate)
-        if top <= py <= bottom:
-            line = candidate
-            break
+        if not top <= py <= bottom:
+            continue
+        left = min(w.x for w in candidate)
+        right = max(w.x + w.w for w in candidate)
+        in_x = left <= px <= right
+        center_dist = abs((top + bottom) / 2 - py)
+        rank = (not in_x, center_dist)
+        if best is None or rank < best:
+            best, line = rank, candidate
     if line is None:
         return ""
 
@@ -125,7 +135,18 @@ def text_at_point(
         if x0 <= px < x1:
             start = i
             break
-    if start is None or not is_word_char(chars[start][0]):
+    if start is None:
+        # OCR often emits per-character boxes with small gaps between them
+        # (typical for Japanese); snap to the nearest character if the cursor
+        # is within one character-width of it.
+        best_dist = None
+        for i, (ch, x0, x1) in enumerate(chars):
+            dist = x0 - px if px < x0 else px - x1
+            if best_dist is None or dist < best_dist:
+                best_dist, start = dist, i
+        if start is None or best_dist > chars[start][2] - chars[start][1]:
+            return ""
+    if not is_word_char(chars[start][0]):
         return ""
 
     tail = []
