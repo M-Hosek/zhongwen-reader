@@ -6,3 +6,5 @@ __pycache__/
 .pytest_cache/
 zhongwen_reader.ico
 .claude/
+share/
+ZhongwenReader-share.zip
