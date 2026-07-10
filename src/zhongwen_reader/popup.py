@@ -50,6 +50,7 @@ class Popup:
 
         hanzi_font = tkfont.Font(family="Microsoft YaHei", size=font_size + 6)
         base_font = tkfont.Font(family="Segoe UI", size=font_size)
+        self._base_font = base_font
         self._text.configure(font=base_font)
         self._text.tag_configure("hanzi", font=hanzi_font, foreground=FG_HANZI)
         self._text.tag_configure(
@@ -76,6 +77,14 @@ class Popup:
             foreground=FG_ALT,
         )
 
+        # Map once invisibly so the Text widget gets its real wrap width;
+        # an unmapped widget is 1px wide and line/pixel counts are garbage.
+        self._win.attributes("-alpha", 0.0)
+        self._win.deiconify()
+        self._win.update()
+        self._win.withdraw()
+        self._win.attributes("-alpha", 1.0)
+
     def show(self, segments: list[Segment], screen_x: int, screen_y: int) -> None:
         if not segments:
             self.hide()
@@ -95,7 +104,9 @@ class Popup:
             if kind == "separator":
                 text.insert("end", "\n" + "─" * 44 + "\n", "separator")
             elif kind == "hanzi":
-                if text.index("end-1c") != "1.0":
+                # Start a new line unless at the top or right after a
+                # separator, which already ends with a newline.
+                if text.index("end-1c") != "1.0" and text.get("end-2c") != "\n":
                     text.insert("end", "\n")
                 text.insert("end", content, "hanzi")
             elif kind == "hanzi_alt":
@@ -111,9 +122,12 @@ class Popup:
                 text.insert("end", content, "inflection")
             elif kind == "definition":
                 text.insert("end", "\n" + content, "definition")
-        # Shrink the widget to its actual rendered line count.
+        # Size the widget by rendered pixel height: `height` is measured in
+        # base-font lines, but hanzi lines use a larger font, so counting
+        # display lines undershoots and clips the bottom.
         text.update_idletasks()
-        lines = text.count("1.0", "end", "displaylines")[0]
+        pixels = text.count("1.0", "end", "update", "ypixels")
+        lines = -(-pixels // self._base_font.metrics("linespace"))
         text.configure(height=min(lines, 24), state="disabled")
 
     def _place(self, screen_x: int, screen_y: int) -> None:
