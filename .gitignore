@@ -3,6 +3,7 @@ build/
 dist/
 __pycache__/
 *.pyc
+*.egg-info/
 .pytest_cache/
 zhongwen_reader.ico
 .claude/
